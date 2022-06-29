@@ -9,7 +9,7 @@ import shutil
 import sys
 from io import BytesIO
 from typing import Dict, List, Optional, Set
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup  # pip install bs4
@@ -74,6 +74,33 @@ class Spider:
             else:
                 print((response.headers["content-type"], url))
 
+    def is_parsing_target(self, url: str) -> bool:
+        _, ext = os.path.splitext(url)
+        skip_domains = [
+            "youtube.com",
+            "twitter.com",
+            "google.com",
+            "xing.com",
+            "linkedin.com",
+            "apple.com",
+            "wordpress.com",
+            "mediawiki.com",
+            "facebook.com",
+            "flickr.com",
+            "creativecommons.org",
+            "matomo.org",
+            "github.com",  # here might actually be quite a lot of PDFs
+        ]
+        domain = urlparse(url).netloc  # with subdomain
+        domain = ".".join(domain.split(".")[-2:])
+        return (
+            url not in self.visited_urls
+            and url not in self.pending_urls
+            and url.startswith(self.required_prefix)
+            and not ext in self.skip_suffixes
+            and domain not in skip_domains
+        )
+
     def get_links(self, current_url, html_page):
         soup = BeautifulSoup(html_page, "lxml")
 
@@ -85,13 +112,8 @@ class Spider:
                 url = urljoin(current_url, url)
             url = standardize_url(url)
             print(f"...{url}")
-            _, ext = os.path.splitext(url)
-            if (
-                url not in self.visited_urls
-                and url not in self.pending_urls
-                and url.startswith(self.required_prefix)
-                and not ext in self.skip_suffixes
-            ):
+
+            if self.is_parsing_target(url):
                 self.pending_urls.append(url)
 
     def store_pdf(self, content, url) -> None:
@@ -138,7 +160,7 @@ class Spider:
 if __name__ == "__main__":
     spider = Spider(
         ["https://corpora.tika.apache.org/base/docs/govdocs1/"],
-        required_prefix="https://corpora.tika.apache.org/base/docs/govdocs1",
+        required_prefix="http",
     )
     spider.load()
     spider.crawl_loop()
