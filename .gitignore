@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Where the downloaded PDFs will be located
+pdf/
+
+# State of the crawler
+spider-snapshot.json
+test-cache.json
