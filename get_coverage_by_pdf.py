@@ -5,12 +5,16 @@ a typical user opration with a file.
 
 import json
 import os
+import time
+import warnings
 from pathlib import Path
 
 import coverage
 import pytest
-from PyPDF2 import PdfMerger, PdfReader
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from rich.progress import track
+
+warnings.filterwarnings("ignore")
 
 
 def get_text(path):
@@ -43,6 +47,20 @@ def make_merge(path):
     merger.write("tmp.merged.pdf")
 
 
+def make_overlay(path):
+    reader = PdfReader(path)
+    writer = PdfWriter()
+
+    reader_overlay = PdfReader("overlay.pdf")
+    overlay = reader_overlay.pages[0]
+
+    for page in reader.pages:
+        page.merge_page(overlay)
+        writer.add_page(page)
+    with open("tmp.merged.pdf", "wb") as fp:
+        writer.write(fp)
+
+
 def make_xfa(path):
     reader = PdfReader(path)
     if reader.xfa:
@@ -64,7 +82,7 @@ def store(file2cov):
         fp.write(json.dumps(file2cov, indent=4))
 
 
-def main():
+def main(OPERATION, CACHE_FILE_NAME):
     root = Path("pdf")
     paths = sorted(list(root.glob("*.pdf")))
 
@@ -91,6 +109,7 @@ def main():
         assert file2cov_base[src_file] is not None
 
     file2cov = load()
+    timings = []  # TODO: load and store!
     i = 0
     for path in track(paths):
         str_path = str(path)
@@ -99,9 +118,13 @@ def main():
         cov = coverage.Coverage()
         cov.start()
         try:
+            t0 = time.time()
             OPERATION(path)
+            t1 = time.time()
+            timings.append(t1 - t0)
         except Exception:
-            pass
+            continue
+            # raise # todo: actually fail
         cov.stop()
         cov.save()
         data = cov.get_data()
@@ -121,8 +144,17 @@ def main():
     store(file2cov)
 
 
-OPERATION = make_merge
-CACHE_FILE_NAME = "cache-merge.json"
-
 if __name__ == "__main__":
-    main()
+    m = {
+        "cache-overlay.json": make_overlay,
+        "cache-make_compress.json": make_compress,
+        "cache-get-text.json": get_text,
+        "cache-make_merge.json": make_merge,
+        "cache-get-metadata.json": get_metadata,
+        "cache-get-fields.json": make_get_fields,
+        "cache-make_xfa.json": make_xfa,
+    }
+
+    for CACHE_FILE_NAME, OPERATION in m.items():
+        print(f"## {CACHE_FILE_NAME} starts...")
+        main(OPERATION, CACHE_FILE_NAME)
