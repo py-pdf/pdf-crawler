@@ -16,7 +16,7 @@ logger.setLevel(logging.ERROR)
 
 import json
 
-with open("spider-snapshot.json") as fp:
+with open("../spider-snapshot.json") as fp:
     mapping = json.load(fp)["stored_at"]
 
 
@@ -39,7 +39,9 @@ def verify_read_write(path: str) -> bool:
     size_new = os.path.getsize(path_new)
 
     if abs(size_old - size_new) > 4_000_000:
-        # print(f"{size_old:>12,} vs {size_new:>12,}: {abs(size_old-size_new):12,} for {path}: {mapping[str(path)]}")
+        print(
+            f"{size_old:>12,} vs {size_new:>12,}: {abs(size_old-size_new):12,} for {path}: {mapping[str(path)]}"
+        )
         return False
     os.remove(path_new)
     return True
@@ -55,7 +57,8 @@ def main():
                 pass
                 # print(f"Failed for {path}")
         except Exception as e:
-            print(f"{mapping[str(path)]}: {e}")
+            # print(f"{mapping.get(str(path), str(path))}: {e}")
+            pass
 
 
 if __name__ == "__main__":
