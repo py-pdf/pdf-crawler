@@ -1,7 +1,8 @@
 """
 Download all publicly available and linked PDF documents from one domain.
 """
-
+import ssl
+import certifi
 import hashlib
 import json
 import os
@@ -25,6 +26,8 @@ def md5(f):
 
 def standardize_url(url):
     # crop anchor
+    if "?" in url:
+        return url.split("?")[0]
     if "#" in url:
         return url.split("#")[0]
     return url
@@ -47,6 +50,7 @@ class Spider:
             ".xls",
             ".log",
             ".ps",
+            ".xmp",
         ]
 
     def get_url(self, target) -> Optional[str]:
@@ -61,7 +65,11 @@ class Spider:
             self.snapshot()
 
     def crawl_page(self, url: str):
-        response = requests.get(url)
+        try:
+            response = requests.get(url)
+        except Exception as exc:
+            print(f"FAILED with {url} due to {exc}")
+            return
         if response.status_code == 200:
 
             if "content-type" not in response.headers:
@@ -160,7 +168,7 @@ class Spider:
 if __name__ == "__main__":
     spider = Spider(
         ["https://corpora.tika.apache.org/base/docs/govdocs1/"],
-        required_prefix="http",
+        required_prefix="https://corpora.tika",
     )
     spider.load()
     spider.crawl_loop()
